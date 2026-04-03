@@ -10,6 +10,8 @@ readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
   # put the project code's dependencies here
+  "dvc>=3.67.1",
+  "dvc-gs>=3.0.2",
 ]
 
 [dependency-groups]
