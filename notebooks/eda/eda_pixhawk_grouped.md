@@ -20,6 +20,7 @@ Exploring three Pixhawk grouped flights (11, 56, 101) to understand the data str
 import pandas as pd
 import matplotlib.pyplot as plt
 import re
+import numpy as np
 
 plt.style.use('seaborn-v0_8-whitegrid')
 ```
@@ -306,6 +307,41 @@ All are PWM signals in the 1000-1800 range. Channels 4-15 are unused (all zeros)
 All inputs identified per the paper's Section: Position Estimation in GPS-Denied Scenarios.
 
 
+Let's visualize what the regression target (position x, y, z) actually looks like across our three sample flights.
+
+```python
+fig, axes = plt.subplots(3, 3, figsize=(12, 10))
+
+pos_labels = ['x_f131', 'y_f131', 'z_f131']
+
+for i, (fid, df) in enumerate(flights.items()):
+    for j, col in enumerate(pos_labels):
+        if col in df.columns:
+            axes[i, j].plot(df[col].values, linewidth=0.8)
+            axes[i, j].set_title(f'Flight {fid} - {col}')
+        else:
+            axes[i, j].set_title(f'Flight {fid} - {col} NOT FOUND')
+
+for ax in axes[-1]:
+    ax.set_xlabel('Row number')
+
+for i, (fid, df) in enumerate(flights.items()):
+    axes[i, 0].set_ylabel('meters')
+plt.tight_layout()
+plt.show()
+```
+
+**What these graphs show:** The drone's physical position during each flight, measured in meters from where it took off.
+
+- **x** = how far north/south the drone has traveled
+- **y** = how far east/west
+- **z** = altitude (negative because the coordinate system points downward, so -120 means 120 meters above the start)
+
+The repeating wave patterns in x and y are the drone flying the racetrack circuit -- each peak and valley is a turn. The z shows the drone climbing and descending throughout the flight, staying roughly 50-120 meters above the starting point.
+
+All three flights show very similar patterns, which makes sense since they're flying the same circuit. This is what the regression model would try to predict using only sensor data (IMU, airspeed, attitude, actuators) without GPS.
+
+
 ## Key Columns: Classification Path (Energy Efficiency)
 
 For classification we need battery voltage, current (to compute power), and ground velocity (to compute efficiency = speed / power).
@@ -320,7 +356,7 @@ for c in batt_cols:
 
 ```python
 # Velocity columns for ground speed
-vel_cols = [c for c in df.columns if c in ['vx_f58', 'vy_f58', 'vz_f58']]
+vel_cols = [c for c in df.columns if c in ['vx_f131', 'vy_f131', 'vz_f131']]
 print('Velocity columns (for ground speed):')
 for c in vel_cols:
     print(f'  {c}')
@@ -342,50 +378,93 @@ for fid, df in flights.items():
     print()
 ```
 
+## Classification Path: Energy Efficiency
+
+For classification, we need to compute an efficiency metric: ground speed divided by electrical power. The paper defines anything below 0.1 m/W as inefficient.
+
+**Power** = voltage x current (from f9 = `battery_status_0`)
+**Ground speed** = sqrt(vx^2 + vy^2 + vz^2) (from f131 = `vehicle_local_position_0`)
+
+Battery data looks clean across all three flights: voltage steady around 15.2-16V, current ranges from near-zero up to ~20A. No missing values.
+
+
 ## Time Series: Battery Voltage and Current
 
 ```python
-fig, axes = plt.subplots(3, 2, figsize=(14, 10))
+fig, axes = plt.subplots(3, 2, figsize=(10, 10))
 
 for i, (fid, df) in enumerate(flights.items()):
-    t = (df['timestamp'] - df['timestamp'].iloc[0]) / 1e6  # seconds from start
-    
-    if 'voltage_v_f9' in df.columns:
-        axes[i, 0].plot(t, df['voltage_v_f9'], linewidth=0.8)
-        axes[i, 0].set_title(f'Flight {fid} - Voltage')
-        axes[i, 0].set_ylabel('Volts')
-    
-    if 'current_a_f9' in df.columns:
-        axes[i, 1].plot(t, df['current_a_f9'], linewidth=0.8, color='orange')
-        axes[i, 1].set_title(f'Flight {fid} - Current')
-        axes[i, 1].set_ylabel('Amps')
+    axes[i, 0].plot(df['voltage_v_f9'].values, linewidth=0.8)
+    axes[i, 0].set_title(f'Flight {fid} - Voltage')
+    axes[i, 0].set_ylabel('Volts')
+
+    axes[i, 1].plot(df['current_a_f9'].values, linewidth=0.8, color='orange')
+    axes[i, 1].set_title(f'Flight {fid} - Current')
+    axes[i, 1].set_ylabel('Amps')
 
 for ax in axes[-1]:
-    ax.set_xlabel('Time (seconds)')
+    ax.set_xlabel('Row number')
 
 plt.tight_layout()
 plt.show()
 ```
 
-## Time Series: Position (x, y, z)
+The paper defines energy efficiency as ground speed divided by electrical power (watts). Any moment where that ratio drops below 0.1 m/W is labeled as "inefficient." These are things like tight turns, steep climbs, or fighting headwinds. Below we compute this for each flight and see what percentage of the data falls below that threshold.
 
 ```python
-fig, axes = plt.subplots(3, 3, figsize=(16, 10))
-
-pos_labels = ['x_f58', 'y_f58', 'z_f58']
+fig, axes = plt.subplots(3, 1, figsize=(10, 8))
 
 for i, (fid, df) in enumerate(flights.items()):
-    t = (df['timestamp'] - df['timestamp'].iloc[0]) / 1e6
-    for j, col in enumerate(pos_labels):
-        if col in df.columns:
-            axes[i, j].plot(t, df[col], linewidth=0.8)
-            axes[i, j].set_title(f'Flight {fid} - {col}')
-        else:
-            axes[i, j].set_title(f'Flight {fid} - {col} NOT FOUND')
+    power = df['voltage_v_f9'] * df['current_a_f9']
+    ground_speed = np.sqrt(df['vx_f131']**2 + df['vy_f131']**2 + df['vz_f131']**2)
+    efficiency = ground_speed / power
+    
+    inefficient = efficiency < 0.1
+    pct_inefficient = inefficient.sum() / len(df) * 100
+    
+    axes[i].plot(efficiency.values, linewidth=0.8)
+    axes[i].axhline(y=0.1, color='red', linestyle='--', label='0.1 m/W threshold')
+    axes[i].set_title(f'Flight {fid} - Efficiency ({pct_inefficient:.1f}% below threshold)')
+    axes[i].set_ylabel('m/W')
+    axes[i].legend()
 
-for ax in axes[-1]:
-    ax.set_xlabel('Time (seconds)')
-
+axes[-1].set_xlabel('Row number')
 plt.tight_layout()
 plt.show()
 ```
+
+**Finding:** The 0.1 m/W threshold from the paper produces a roughly 50/50 split between efficient and inefficient across all three flights (47-53% inefficient). That's a naturally balanced dataset for classification, which is a good sign.
+
+A few things to note:
+- The big spikes (3-6 m/W) are likely gliding moments where the drone covers distance on very little power
+- Flight 11 shows a negative efficiency value, which shouldn't be possible -- worth investigating (possibly negative current or a data quirk)
+- Most of the data hugs close to the threshold line, meaning the model will need to distinguish between values that are close together
+
+
+## Classification Path Summary
+
+**What we're predicting:** Whether the drone is flying efficiently or inefficiently at any given moment.
+
+**How we create the label:**
+- Calculate power: `voltage_v_f9` x `current_a_f9` (watts)
+- Calculate ground speed: sqrt(`vx_f131`^2 + `vy_f131`^2 + `vz_f131`^2) (m/s)
+- Calculate efficiency: ground speed / power (m/W)
+- Label: below 0.1 m/W = inefficient (1), above = efficient (0)
+
+**Variables needed:**
+
+| Column | Description | Source file | Suffix |
+|--------|------------|-------------|--------|
+| `voltage_v_f9` | Battery voltage (V) | battery_status_0 | f9 |
+| `current_a_f9` | Battery current (A) | battery_status_0 | f9 |
+| `vx_f131` | Velocity north (m/s) | vehicle_local_position_0 | f131 |
+| `vy_f131` | Velocity east (m/s) | vehicle_local_position_0 | f131 |
+| `vz_f131` | Velocity down (m/s) | vehicle_local_position_0 | f131 |
+
+**Key findings from Initial EDA:**
+- Battery data is clean across all three flights, no nulls
+- Voltage steady around 15.2-16V, current ranges 0-20A (consistent with paper's stated 18A cruise)
+- The 0.1 m/W threshold produces a roughly 50/50 split (47-53% inefficient), so no class imbalance issue
+- Flight 11 has a negative efficiency value worth investigating
+
+**Predictor variables:** Still to be determined -- the label columns above are used to create the target, but the model inputs would likely be similar to the regression path (IMU, attitude, actuators) plus possibly battery features. Further exploration is needed. 
