@@ -17,6 +17,7 @@ perf.data*
 
 # python outputs and caches
 .ipynb_checkpoints/
+*.ipynb
 __marimo__/
 .pytest_cache/
 .ruff_cache/
@@ -74,3 +75,4 @@ coverage.xml
 [Dd]esktop.ini
 *~
 /smoke_test_dummy.txt
+data/processed/

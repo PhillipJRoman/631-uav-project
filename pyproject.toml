@@ -12,6 +12,8 @@ dependencies = [
   # put the project code's dependencies here
   "dvc>=3.67.1",
   "dvc-gs>=3.0.2",
+  "jupytext>=1.19.1",
+  "matplotlib>=3.10.8",
 ]
 
 [dependency-groups]
