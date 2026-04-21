@@ -5,16 +5,24 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "uav-efficiency-proj"
 version = "2025.0"
-description = "Add your description here"
+description = "Binary classification of UAV flight efficiency from onboard sensor telemetry using Logistic Regression, XGBoost, and Graph Attention Networks. DSCI 631 term project."
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
-  # put the project code's dependencies here
+  # data management and notebooks
   "dvc>=3.67.1",
   "dvc-gs>=3.0.2",
   "jupytext>=1.19.1",
+  # core data stack
+  "numpy>=2.0",
+  "pandas>=2.2",
   "matplotlib>=3.10.8",
+  # classical ML
   "scikit-learn>=1.8.0",
+  "xgboost>=2.1",
+  # deep learning
+  "torch>=2.5",
+  "torch-geometric>=2.6",
 ]
 
 [dependency-groups]
@@ -36,11 +44,9 @@ dev = [
 [tool.uv]
 python-preference = "managed"
 
-# this index makes it easier to get usable PyTorch versions when we don't
-# care about supporting non-CUDA installations.
-[[tool.uv.index]]
-name = "lk-torch-cuda"
-url = "https://pypi.lenskit.org/torch/cu128"
+# PyTorch is installed from the default index; on Apple Silicon this provides
+# MPS (Metal Performance Shaders) support out of the box. If the project is
+# later run on a CUDA machine, a CUDA-specific index can be added here.
 
 [tool.ruff]
 line-length = 100
