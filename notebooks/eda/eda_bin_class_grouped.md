@@ -105,21 +105,8 @@ for col in key_cols:
 | `output[2]_f3` | Command sent to the elevator (pitch control) |
 | `output[3]_f3` | Command sent to the rudder (yaw control) |
 
-```python
-# Which flights have nulls in vx_f131?
-for df in all_flights:
-    fid = df['flight_id'].iloc[0]
-    if 'vx_f131' not in df.columns or df['vx_f131'].isnull().any():
-        print(f'Flight {fid}: {len(df)} rows, vx_f131 exists: {"vx_f131" in df.columns}')
-```
 
-**Finding:** 8 flights have issues with the `vx_f131` (vehicle_local_position) column:
-
-- **Flights 7, 8, 9:** Missing f131 columns entirely. These flights have a different column structure than the rest (~557-590 rows each, so they're full flights, just logged differently).
-- **Flight 113:** Only 2 rows. Not a real flight, likely a startup or abort.
-- **Flights 117-120:** Missing f131 and also have uncalibrated Pitot data (already flagged in the dataset README).
-
-All 8 flights need to be excluded, leaving 112 usable flights out of 120.
+Check for flights with too few rows or missing key sensor groups (f131 for position, f104 for IMU, f119 for attitude).
 
 ```python
 for df in all_flights:
@@ -128,21 +115,21 @@ for df in all_flights:
         print(f'Flight {fid}: {len(df)} rows | f131: {"vx_f131" in df.columns} | f104: {"gyro_rad[0]_f104" in df.columns} | f119: {"q[0]_f119" in df.columns}')
 ```
 
-**Finding:** 9 flights have issues:
+**Finding:** Nine flights have issues:
 
-- **Flights 7, 8, 9:** Missing f131, f104, and f119 entirely. Full-length flights (~557-590 rows) but logged with a different column structure.
-- **Flight 16:** Only 14 rows. Likely a startup or abort.
-- **Flight 113:** Only 2 rows. Same as above.
-- **Flights 117-120:** Missing f131, f104, f119 and have uncalibrated Pitot data (flagged in dataset README).
+- **Flights 7, 8, 9:** Full-length flights (557-590 rows) but missing f131, f104, and f119 entirely. Logged with a different column structure than the rest.
+- **Flight 16:** All sensor groups present, but only 14 rows. Likely a failed or aborted log.
+- **Flight 113:** Only 2 rows AND missing f131, f104, f119. Definitely a failed or aborted log.
+- **Flights 117-120:** Standard flight lengths (491-510 rows) but missing f131, f104, f119. The dataset README also flags these for uncalibrated Pitot data.
 
 All 9 flights need to be excluded, leaving 111 usable flights out of 120.
 
 
-**Initial Missing Value Conclusion:** 111 usable flights remain after excluding 9 problematic ones. At ~500 rows per flight, that gives us roughly 55,000 data points with an approximately 50/50 class split. This is sufficient for all four model tiers in the DOE.
+**Initial Missing Value Conclusion:** 111 usable flights remain after excluding 9 problematic ones. At ~500 rows per flight, that gives us roughly 55,000 data points. This is sufficient for all four model tiers in the DOE.
 
 **Updated train/test plan:**
 - 85/15 split by flight: 94 training, 17 testing
-- 6-fold CV: ~15-16 flights per fold
+- 6-fold CV: ~15-16 flights per fold. We chose 6 folds (rather than the more common 5 or 10) so each fold contains approximately the same number of flights as the test set, keeping validation conditions similar to the final test conditions.
 
 **Flights to exclude:** 7, 8, 9, 16, 113, 117, 118, 119, 120
 
@@ -271,11 +258,6 @@ print(f'Test saved: {len(test_df)} rows')
 
 Quick check of testset for nulls in predictor variables. 
 
-```python
-test = pd.read_csv('../../data/splits/test.csv')
-print('Test set nulls:')
-print(test[predictor_cols].isnull().sum().to_string())
-```
 
 ## Explore Predictor Variables (Training Set Only)
 
@@ -311,7 +293,7 @@ train[predictor_cols].describe().round(3)
 The scales are very different across features (gyro in radians vs PWM in 1000s). Scaling will be necessary before modeling, which aligns with the DOE's "Raw + Scaling" baseline.
 
 
-## Variable Reference
+## Variable Reference (for quick reference)
 
 **Target variable (used to create the label):**
 
@@ -343,6 +325,20 @@ The scales are very different across features (gyro in radians vs PWM in 1000s).
 | `output[1]_f3` | Command sent to the ailerons (roll control) |
 | `output[2]_f3` | Command sent to the elevator (pitch control) |
 | `output[3]_f3` | Command sent to the rudder (yaw control) |
+
+```python
+test = pd.read_csv('../../data/splits/test.csv')
+
+print('Test set nulls:')
+print(test[predictor_cols].isnull().sum().to_string())
+```
+
+**Finding:** No nulls across the 16 predictor columns checked at the time of split. Test set is clean for the original predictor set.
+
+
+## Predictor Variable Distributions (16 predictor variables from flight dynamics)
+
+Plotting the distribution of each predictor in the training set to see what we're working with. This helps identify which features are normally distributed, skewed, bimodal, or have unusual ranges - all of which inform scaling and feature engineering decisions later.
 
 ```python
 fig, axes = plt.subplots(4, 4, figsize=(16, 12))
@@ -401,7 +397,7 @@ Based on these plots, `accelerometer_m_s2[0]`, `q[0]`, `output[0]`, and `output[
 The remaining features show heavy overlap between classes, meaning they may not be strong separators individually. However, that doesn't make them useless -- combinations of weak features can still separate classes when used together, which is part of what the models (especially the GNN) will test.
 
 
-## Environmental Predictor Variables
+## Environmental Predictor Variables (Exploration)
 
 The paper notes that environmental variables such as temperature, pressure, and humidity can impact power demand. Let's check what's available in the dataset.
 
@@ -466,6 +462,13 @@ train[wind_cols].describe().round(3)
 
 The east wind averages -2.5 m/s, meaning wind consistently blows from the east during these flights. Wind varies enough across the dataset to potentially matter for efficiency prediction -- headwinds and crosswinds directly affect how hard the drone works to maintain ground speed.
 
+```python
+# Final null check on test set with full 22-predictor list
+test = pd.read_csv('../../data/splits/test.csv')
+print(f'Test set: {len(test)} rows')
+print(f'Predictors checked: {len(predictor_cols)}')
+print(f'\nTotal nulls across all predictors: {test[predictor_cols].isnull().sum().sum()}')
+```
 
 ## Summary: Environmental Predictors Added
 
@@ -627,3 +630,94 @@ Across all three sample flights, there's a repeating pattern: blocks of ineffici
 - **Rolling averages:** Could smooth out the very short spikes (1-2 row blips) and help the model see the broader trend of "entering an inefficient segment."
 - **Frame stacking:** More relevant here. Since transitions are sudden, the model needs to see the exact sequence of sensor readings leading up to a flip. A few rows of history could capture the moment the drone enters a turn or starts climbing.
 - Both approaches are worth testing, as outlined in the DOE.
+
+
+## Sensor Behavior During Efficiency Transitions
+
+```python
+fid = sample_ids[0]
+flight = train[train['flight_id'] == fid]
+
+fig, axes = plt.subplots(3, 1, figsize=(12, 8), sharex=True)
+
+axes[0].plot(flight['inefficient'].values, linewidth=0.8)
+axes[0].set_ylabel('Inefficient Label')
+axes[0].set_title(f'Flight {fid} -- Label vs Top Predictors')
+
+axes[1].plot(flight['output[0]_f3'].values, linewidth=0.8)
+axes[1].set_ylabel('Throttle (PWM)')
+
+axes[2].plot(flight['accelerometer_m_s2[0]_f104'].values, linewidth=0.8)
+axes[2].set_ylabel('Forward Accel (m/s2)')
+axes[2].set_xlabel('Row number')
+
+plt.tight_layout()
+plt.show()
+```
+
+**Finding:** Looking at Flight 18, the relationship between the top predictors and the efficiency label is visible:
+
+- **Throttle:** During efficient segments (label = 0), throttle tends to be lower and more variable (1200-1500 range with dips). During inefficient segments (label = 1), throttle is generally higher and steadier (1600-1750 range). The correlation we found earlier (0.572) makes visual sense here.
+- **Forward acceleration:** Noisier signal but there's a pattern. During efficient segments, acceleration tends to be higher and more variable (1-4 m/s2 range). During inefficient segments, acceleration drops closer to zero or goes negative. This aligns with the 0.488 correlation we saw.
+
+The transitions are sharp in the label but more gradual in the sensor readings. Throttle and acceleration start changing a few rows before the label actually flips. This is promising for the temporal engineering in the DOE -- a model with access to recent history (rolling average or frame stacking) could potentially detect these lead-up patterns and predict the transition before it happens.
+
+
+## EDA Summary
+
+### Dataset
+- 111 usable flights out of 120 (excluded flights 7, 8, 9, 16, 113, 117, 118, 119, 120 due to missing columns or insufficient rows)
+- 56,766 total rows, ~500 rows per flight at ~1.4 Hz
+- Train/test split: 94 flights (47,957 rows) / 17 flights (8,809 rows), stratified by flight-level inefficiency rate
+- 22 predictor variables: 16 flight dynamics + 6 environmental
+
+### Target Variable
+- Binary label: efficient (0) vs inefficient (1), derived from the paper's 0.1 m/W threshold
+- 40.2% inefficient overall -- no severe class imbalance
+- Flight-level inefficiency ranges from 18.9% to 63.0%, stratified into 3 bins (low/medium/high) for balanced splitting
+- Transitions between efficient and inefficient are sharp and sudden, not gradual
+
+### Strongest Predictors (Correlation with Target)
+- **output[0] (throttle): 0.572** -- strongest by far
+- **accelerometer_m_s2[0] (forward force): 0.488** -- second strongest
+- **output[2] (elevator): 0.241** -- moderate
+- **baro_pressure_pa: -0.126** and **rho: -0.116** -- modest negative correlation
+- Most other features are below |0.1| individually
+
+### Highly Correlated Feature Pairs (Redundancy)
+- **indicated_airspeed and true_airspeed (0.999)** -- nearly identical, drop one
+- **indicated/true_airspeed and differential_pressure (0.916)** -- three features measuring the same thing, likely only need one
+- **ambient_temperature and rho (-0.934)** -- physically linked, redundant
+- **baro_pressure and rho (0.738)** -- also linked; temperature, pressure, and density all describe the same atmospheric condition
+- **gyro_rad[0] (roll) and output[1] (ailerons) (-0.762)** -- cause and effect pair, both may still be valuable
+
+### Non-Normal Distributions
+- **output[0] (throttle):** Left-skewed with peak between 1600-1700
+- **output[3] (rudder):** Bimodal with peaks near 1400 and 1600
+- **q[0] (w) and q[3] (z):** Bimodal/flat, reflecting the drone's heading changes across the circuit
+- **gyro_rad[1] (pitch rate):** Moderate right skew
+- **ambient_temperature, baro_pressure, rho:** Multimodal, reflecting different flight-day conditions
+- **output[0] (throttle):** Also has a cluster near 1000 (idle)
+
+### Scaling Considerations
+- Feature scales vary widely: gyro in radians (-1.7 to 1.6), actuators in PWM (1000-1860), pressure in Pascals (101,955-103,498)
+- Logistic Regression will require scaling. Standard scaling (z-score) assumes normality -- bimodal features like throttle and rudder violate this assumption. MinMax scaling may be more appropriate for those features, or this limitation should be acknowledged.
+- XGBoost does not require scaling
+- The GNN will likely need scaling for stable training
+
+### Temporal Engineering Considerations
+- Efficiency transitions are sudden, not gradual -- the label flips instantly between 0 and 1
+- Sensor readings (throttle, acceleration) start changing a few rows before the label flips
+- This suggests frame stacking may be more valuable than rolling averages for capturing the lead-up to transitions
+- Both approaches are worth testing as outlined in the DOE
+
+### Environmental Feature Considerations
+- Temperature, pressure, and air density don't separate the classes individually -- they reflect flight-day conditions rather than moment-to-moment changes
+- They may be more valuable as normalizing factors for other features (e.g., adjusting throttle by air density) rather than standalone predictors
+- Wind speed shows weak separation but is physically relevant to efficiency
+
+### Feature Engineering Decisions for Team Discussion
+- Which feature to keep from redundant groups (airspeed vs differential pressure, temperature vs rho vs pressure)
+- Whether to create normalized features using environmental variables (e.g., throttle per unit air density)
+- Rolling averages vs frame stacking window sizes
+- Whether to keep both gyro_rad[0] and output[1] despite high correlation since they represent cause (aileron command) and effect (roll response)
