@@ -7,7 +7,7 @@ jupyter:
       format_version: '1.3'
       jupytext_version: 1.19.1
   kernelspec:
-    display_name: my-experiment
+    display_name: uav-efficiency-proj
     language: python
     name: python3
 ---
@@ -120,20 +120,6 @@ print(f'Total sensor groups: {len(suffix_groups)}\n')
 for suffix, cols in sorted(suffix_groups.items(), key=lambda x: len(x[1]), reverse=True):
     preview = ', '.join(cols[:3])
     print(f'{suffix} ({len(cols)} cols): {preview} ...')
-```
-
-```python
-# Background check  - what columns are in the ungrouped vehicle_local_position file
-vlp = pd.read_csv('/Users/phillipromanmacbook/Downloads/16992976/Holybro Pixhawk/processed/UnGrouped flights/lap_001/log_67_2025-8-21-14-24-48_vehicle_local_position_0.csv')
-print('vehicle_local_position columns:')
-print(vlp.columns.tolist()[:10])
-```
-
-```python
-# Background check - ungrouped estimator_local_position file
-vlp2 = pd.read_csv('/Users/phillipromanmacbook/Downloads/16992976/Holybro Pixhawk/processed/UnGrouped flights/lap_001/log_67_2025-8-21-14-24-48_estimator_local_position_0.csv')
-print('estimator_local_position columns:')
-print(vlp2.columns.tolist()[:10])
 ```
 
 ```python

@@ -125,7 +125,7 @@ for df in all_flights:
 All 9 flights need to be excluded, leaving 111 usable flights out of 120.
 
 
-**Initial Missing Value Conclusion:** 111 usable flights remain after excluding 9 problematic ones. At ~500 rows per flight, that gives us roughly 55,000 data points. This is sufficient for all four model tiers in the DOE.
+**Missing Value Conclusion:** 111 usable flights remain after excluding 9 problematic ones. At ~500 rows per flight, that gives us roughly 55,000 data points. This is sufficient for all four model tiers in the DOE.
 
 **Updated train/test plan:**
 - 85/15 split by flight: 94 training, 17 testing
