@@ -1,0 +1,13 @@
+{
+  "hidden_dim": 16,
+  "heads_layer1": 4,
+  "heads_layer2": 1,
+  "dropout": 0.3,
+  "learning_rate": 0.0005,
+  "batch_size": 16,
+  "max_epochs": 50,
+  "patience": 10,
+  "edge_top_k": 3,
+  "cv_folds": 6,
+  "seed": 631
+}

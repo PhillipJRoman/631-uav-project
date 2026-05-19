@@ -1,0 +1,31 @@
+{
+  "model": "GATv2",
+  "notebook": "07_gat",
+  "cv_folds": 6,
+  "cv_f1_mean": 0.732142622209487,
+  "cv_f1_std": 0.024425694138586862,
+  "cv_auc_mean": 0.8477234639538191,
+  "cv_auc_std": 0.011468987912481002,
+  "test_f1_mean": 0.7240844360333191,
+  "test_f1_std": 0.006751345121519664,
+  "test_auc_mean": 0.8556486806582081,
+  "test_auc_std": 0.00906970974549343,
+  "mean_best_threshold": 0.4816666666666669,
+  "best_fold_by_test_f1": 2,
+  "embedding_dim_per_row": 256,
+  "n_train_graphs": 47487,
+  "n_test_graphs": 8724,
+  "hyperparameters": {
+    "hidden_dim": 16,
+    "heads_layer1": 4,
+    "heads_layer2": 1,
+    "dropout": 0.3,
+    "learning_rate": 0.0005,
+    "batch_size": 16,
+    "max_epochs": 50,
+    "patience": 10,
+    "edge_top_k": 3,
+    "cv_folds": 6,
+    "seed": 631
+  }
+}
