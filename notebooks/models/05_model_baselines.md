@@ -476,5 +476,405 @@ Same Logistic Regression setup as Lasso, but with Elastic Net regularization. El
 **Metrics scored on the cross-validation:** F1 and ROC AUC.
 
 ```python
+logreg_enet_pipeline = Pipeline([
+    ("scaler", StandardScaler()),
+    ("clf", LogisticRegression(
+        solver="saga",
+        max_iter=5000,
+        random_state=RANDOM_STATE,
+    )),
+])
 
+logreg_enet_grid = GridSearchCV(
+    logreg_enet_pipeline,
+    param_grid={
+        "clf__C": np.logspace(-2, 2, 5),
+        "clf__l1_ratio": [0.3, 0.5, 0.7],
+    },
+    cv=cv,
+    scoring={"f1": "f1", "roc_auc": "roc_auc"},
+    refit="f1",
+    n_jobs=-1,
+    return_train_score=False,
+)
+
+logreg_enet_grid.fit(X_train, y_train, groups=groups_train)
+
+best_C_enet = logreg_enet_grid.best_params_["clf__C"]
+best_l1_ratio_enet = logreg_enet_grid.best_params_["clf__l1_ratio"]
+coefs_enet = logreg_enet_grid.best_estimator_.named_steps["clf"].coef_[0]
+n_zero_enet = int(np.sum(coefs_enet == 0))
+n_nonzero_enet = int(np.sum(coefs_enet != 0))
+
+best_idx_enet = logreg_enet_grid.best_index_
+cv_f1_mean_enet = logreg_enet_grid.cv_results_["mean_test_f1"][best_idx_enet]
+cv_f1_std_enet = logreg_enet_grid.cv_results_["std_test_f1"][best_idx_enet]
+cv_auc_mean_enet = logreg_enet_grid.cv_results_["mean_test_roc_auc"][best_idx_enet]
+cv_auc_std_enet = logreg_enet_grid.cv_results_["std_test_roc_auc"][best_idx_enet]
+
+print(f"Elastic Net Logistic Regression")
+print(f"  Best C: {best_C_enet:.6f}")
+print(f"  Best l1_ratio: {best_l1_ratio_enet}")
+print(f"  Features kept (non-zero coef): {n_nonzero_enet} / {len(coefs_enet)}")
+print(f"  Features eliminated (zero coef): {n_zero_enet} / {len(coefs_enet)}")
+print(f"  CV F1:      {cv_f1_mean_enet:.4f} +/- {cv_f1_std_enet:.4f}")
+print(f"  CV ROC AUC: {cv_auc_mean_enet:.4f} +/- {cv_auc_std_enet:.4f}")
 ```
+
+**Findings:**
+
+- Best C = 0.005995 (same as Lasso), best l1_ratio = 0.5 (equal mix of L1 and L2).
+- 49 of 70 features kept, 21 eliminated. Less aggressive pruning than Lasso (which kept 36), as expected given the L2 component.
+- CV F1 = 0.7979 +/- 0.0108, CV ROC AUC = 0.9166 +/- 0.0037.
+- Scores are statistically indistinguishable from Lasso (F1 differs by 0.001, well within fold std of 0.01). The L2 component kept 13 additional features alive that did not improve performance.
+- Conclusion: Lasso's sparse solution is preferred. Same predictive performance with fewer features and a cleaner interpretability story.
+
+```python
+enet_model_path = MODELS_DIR / "logreg_enet.pkl"
+joblib.dump(logreg_enet_grid.best_estimator_, enet_model_path)
+
+print(f"Saved: {enet_model_path}")
+```
+
+```python
+def save_model_results(model_name, cv_f1_mean, cv_f1_std, cv_auc_mean, cv_auc_std, extra=None):
+    """Save a single model's CV results to results/05_baselines/{model_name}.json."""
+    payload = {
+        "model": model_name,
+        "cv_f1_mean": float(cv_f1_mean),
+        "cv_f1_std": float(cv_f1_std),
+        "cv_roc_auc_mean": float(cv_auc_mean),
+        "cv_roc_auc_std": float(cv_auc_std),
+    }
+    if extra:
+        payload.update(extra)
+    path = RESULTS_DIR / f"{model_name}.json"
+    with open(path, "w") as f:
+        json.dump(payload, f, indent=2)
+    print(f"Saved: {path}")
+
+
+save_model_results(
+    "persistence",
+    cv_f1_mean=persistence_train_scores["f1"],
+    cv_f1_std=0.0,
+    cv_auc_mean=persistence_train_scores["roc_auc"],
+    cv_auc_std=0.0,
+    extra={
+        "note": "Naive baseline, no CV. Scores are train-set predictions vs train-set labels.",
+        "train_f1": float(persistence_train_scores["f1"]),
+        "train_roc_auc": float(persistence_train_scores["roc_auc"]),
+        "test_f1": float(persistence_test_scores["f1"]),
+        "test_roc_auc": float(persistence_test_scores["roc_auc"]),
+    },
+)
+
+save_model_results(
+    "logreg_lasso",
+    cv_f1_mean=cv_f1_mean,
+    cv_f1_std=cv_f1_std,
+    cv_auc_mean=cv_auc_mean,
+    cv_auc_std=cv_auc_std,
+    extra={
+        "best_C": float(best_C_lasso),
+        "l1_ratio": 1.0,
+        "n_features_kept": n_nonzero,
+        "n_features_eliminated": n_zero,
+    },
+)
+
+save_model_results(
+    "logreg_enet",
+    cv_f1_mean=cv_f1_mean_enet,
+    cv_f1_std=cv_f1_std_enet,
+    cv_auc_mean=cv_auc_mean_enet,
+    cv_auc_std=cv_auc_std_enet,
+    extra={
+        "best_C": float(best_C_enet),
+        "l1_ratio": float(best_l1_ratio_enet),
+        "n_features_kept": n_nonzero_enet,
+        "n_features_eliminated": n_zero_enet,
+    },
+)
+```
+
+## Model 4: Linear Discriminant Analysis (LDA)
+
+Second linear baseline with different assumptions from Logistic Regression.
+
+**How LDA works in plain terms:**
+
+LDA assumes each class is a Gaussian (bell curve) with the same covariance shape. It finds the single direction in feature space that pushes the two class means as far apart as possible while keeping each class as tight as possible. Classification reduces to projecting a new point onto that direction and checking which side of a threshold it falls on.
+
+**Why include LDA:**
+
+- Different reasoning from Logistic Regression. Logistic Regression minimizes classification error directly. LDA assumes the data shape and derives the boundary from that assumption.
+- If LDA and Logistic Regression score similarly, the linear ceiling is real and consistent across approaches.
+- If they diverge, that tells us something about the class distributions (likely non-Gaussian or unequal covariance).
+
+**Preprocessing:**
+
+- `StandardScaler` inside the pipeline. LDA is not scale-invariant in the same way Logistic Regression is, but standardization keeps the optimization stable and the projection coefficients comparable.
+
+**Hyperparameter tuning:**
+
+- LDA has no regularization strength to sweep in its default form. We use the default solver (`svd`) and no shrinkage.
+- `cross_val_score` with our 6-fold GroupKFold split, scored on F1 and ROC AUC.
+
+**Metrics scored on the cross-validation:** F1 score and ROC AUC.
+
+```python
+from sklearn.model_selection import cross_validate
+
+lda_pipeline = Pipeline([
+    ("scaler", StandardScaler()),
+    ("clf", LinearDiscriminantAnalysis()),
+])
+
+lda_cv_results = cross_validate(
+    lda_pipeline,
+    X_train,
+    y_train,
+    groups=groups_train,
+    cv=cv,
+    scoring={"f1": "f1", "roc_auc": "roc_auc"},
+    n_jobs=-1,
+    return_train_score=False,
+)
+
+cv_f1_mean_lda = lda_cv_results["test_f1"].mean()
+cv_f1_std_lda = lda_cv_results["test_f1"].std()
+cv_auc_mean_lda = lda_cv_results["test_roc_auc"].mean()
+cv_auc_std_lda = lda_cv_results["test_roc_auc"].std()
+
+lda_pipeline.fit(X_train, y_train)
+
+print(f"Linear Discriminant Analysis")
+print(f"  CV F1:      {cv_f1_mean_lda:.4f} +/- {cv_f1_std_lda:.4f}")
+print(f"  CV ROC AUC: {cv_auc_mean_lda:.4f} +/- {cv_auc_std_lda:.4f}")
+```
+
+**Findings:**
+
+- CV F1 = 0.7897 +/- 0.0196, CV ROC AUC = 0.9058 +/- 0.0052.
+- LDA trails both Logistic Regression variants slightly: F1 by ~0.008, ROC AUC by ~0.011.
+- Fold-to-fold variance is roughly double Logistic Regression's, suggesting LDA's Gaussian assumption is only approximately satisfied by the feature distributions.
+- All three linear models cluster tightly (F1 between 0.79 and 0.80, ROC AUC between 0.90 and 0.92). The linear ceiling for this feature set appears real.
+
+```python
+lda_model_path = MODELS_DIR / "lda.pkl"
+joblib.dump(lda_pipeline, lda_model_path)
+
+save_model_results(
+    "lda",
+    cv_f1_mean=cv_f1_mean_lda,
+    cv_f1_std=cv_f1_std_lda,
+    cv_auc_mean=cv_auc_mean_lda,
+    cv_auc_std=cv_auc_std_lda,
+)
+
+print(f"Saved: {lda_model_path}")
+```
+
+## Test set evaluation
+
+Score all three trained models (Lasso, Elastic Net, LDA) on the held-out test set. This is the unbiased final number, since the test set was never seen during training or hyperparameter tuning.
+
+Persistence test scores were computed earlier and are already saved.
+
+```python
+def score_pipeline_on_test(pipeline, X_test, y_test):
+    """Score a fitted sklearn pipeline on the test set. Returns F1 and ROC AUC."""
+    y_pred = pipeline.predict(X_test)
+    y_proba = pipeline.predict_proba(X_test)[:, 1]
+    return {
+        "f1": float(f1_score(y_test, y_pred)),
+        "roc_auc": float(roc_auc_score(y_test, y_proba)),
+    }
+
+
+lasso_test_scores = score_pipeline_on_test(logreg_lasso_grid.best_estimator_, X_test, y_test)
+enet_test_scores = score_pipeline_on_test(logreg_enet_grid.best_estimator_, X_test, y_test)
+lda_test_scores = score_pipeline_on_test(lda_pipeline, X_test, y_test)
+
+print(f"Test set scores (8,724 rows across 17 flights):\n")
+print(f"  Persistence:  F1 = {persistence_test_scores['f1']:.4f}, ROC AUC = {persistence_test_scores['roc_auc']:.4f}")
+print(f"  Lasso:        F1 = {lasso_test_scores['f1']:.4f}, ROC AUC = {lasso_test_scores['roc_auc']:.4f}")
+print(f"  Elastic Net:  F1 = {enet_test_scores['f1']:.4f}, ROC AUC = {enet_test_scores['roc_auc']:.4f}")
+print(f"  LDA:          F1 = {lda_test_scores['f1']:.4f}, ROC AUC = {lda_test_scores['roc_auc']:.4f}")
+```
+
+**Findings:**
+
+- Persistence: F1 = 0.9105, ROC AUC = 0.9261.
+- Lasso:       F1 = 0.8182, ROC AUC = 0.9239.
+- Elastic Net: F1 = 0.8155, ROC AUC = 0.9229.
+- LDA:         F1 = 0.7956, ROC AUC = 0.9097.
+- All three trained models scored slightly higher on test than on cross-validation. The 17-flight test set appears mildly more separable than the average CV fold.
+- Persistence wins on F1 by ~0.09 over the next-best model, but ROC AUC is nearly identical between persistence, Lasso, and Elastic Net (within 0.003).
+- The F1 gap is largely a classification-threshold issue. The trained models rank-order rows nearly as well as persistence, but at the default 0.5 threshold they convert that ordering into hard predictions less effectively.
+- Lasso edges Elastic Net on both metrics, confirming the preferred-model conclusion from CV.
+- LDA trails on both metrics at test time, consistent with cross-validation.
+
+```python
+combined_metrics = {
+    "notebook": "05_model_baselines",
+    "test_set": {"n_rows": int(len(y_test)), "n_flights": int(len(np.unique(groups_test)))},
+    "cv_setup": {"splitter": "GroupKFold", "n_splits": N_SPLITS, "group_col": GROUP_COL},
+    "models": {
+        "persistence": {
+            "type": "naive_baseline",
+            "cv_f1_mean": None,
+            "cv_f1_std": None,
+            "cv_roc_auc_mean": None,
+            "cv_roc_auc_std": None,
+            "train_f1": float(persistence_train_scores["f1"]),
+            "train_roc_auc": float(persistence_train_scores["roc_auc"]),
+            "test_f1": float(persistence_test_scores["f1"]),
+            "test_roc_auc": float(persistence_test_scores["roc_auc"]),
+            "note": "No CV. Predicts label at row t as label at row t-1 within each flight.",
+        },
+        "logreg_lasso": {
+            "type": "logistic_regression_l1",
+            "best_C": float(best_C_lasso),
+            "l1_ratio": 1.0,
+            "n_features_kept": n_nonzero,
+            "n_features_eliminated": n_zero,
+            "cv_f1_mean": float(cv_f1_mean),
+            "cv_f1_std": float(cv_f1_std),
+            "cv_roc_auc_mean": float(cv_auc_mean),
+            "cv_roc_auc_std": float(cv_auc_std),
+            "test_f1": float(lasso_test_scores["f1"]),
+            "test_roc_auc": float(lasso_test_scores["roc_auc"]),
+        },
+        "logreg_enet": {
+            "type": "logistic_regression_elastic_net",
+            "best_C": float(best_C_enet),
+            "l1_ratio": float(best_l1_ratio_enet),
+            "n_features_kept": n_nonzero_enet,
+            "n_features_eliminated": n_zero_enet,
+            "cv_f1_mean": float(cv_f1_mean_enet),
+            "cv_f1_std": float(cv_f1_std_enet),
+            "cv_roc_auc_mean": float(cv_auc_mean_enet),
+            "cv_roc_auc_std": float(cv_auc_std_enet),
+            "test_f1": float(enet_test_scores["f1"]),
+            "test_roc_auc": float(enet_test_scores["roc_auc"]),
+        },
+        "lda": {
+            "type": "linear_discriminant_analysis",
+            "cv_f1_mean": float(cv_f1_mean_lda),
+            "cv_f1_std": float(cv_f1_std_lda),
+            "cv_roc_auc_mean": float(cv_auc_mean_lda),
+            "cv_roc_auc_std": float(cv_auc_std_lda),
+            "test_f1": float(lda_test_scores["f1"]),
+            "test_roc_auc": float(lda_test_scores["roc_auc"]),
+        },
+    },
+}
+
+combined_path = RESULTS_DIR / "metrics.json"
+with open(combined_path, "w") as f:
+    json.dump(combined_metrics, f, indent=2)
+
+print(f"Saved: {combined_path}")
+```
+
+## Diagnostic plots: class separation under linear models
+
+Two side-by-side histograms showing how well each linear model separates the two classes:
+
+- **LDA projection histogram**: project test rows onto LDA's discriminant direction. Each row becomes a single number. Plot the distribution of those numbers separately for each class. If the two histograms are far apart with little overlap, the data is linearly separable. If they sit on top of each other, linear models are hitting a ceiling.
+
+- **Logistic Regression probability histogram**: get predicted probabilities for the inefficient class from the Lasso model. Plot the distribution separately for each class. Same diagnostic question, different lens. A well-calibrated model puts most class-1 rows near probability 1 and most class-0 rows near probability 0.
+
+**What this tells us:** if both plots show heavy overlap between the classes, non-linear models (XGBoost, Graph Attention Network) have room to improve. If both show clean separation, the linear ceiling is the real ceiling.
+
+```python
+lda_projection = lda_pipeline.decision_function(X_test)
+lasso_proba = logreg_lasso_grid.best_estimator_.predict_proba(X_test)[:, 1]
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+axes[0].hist(
+    lda_projection[y_test == 0],
+    bins=50,
+    alpha=0.6,
+    label="Efficient (class 0)",
+)
+axes[0].hist(
+    lda_projection[y_test == 1],
+    bins=50,
+    alpha=0.6,
+    label="Inefficient (class 1)",
+)
+axes[0].axvline(0, linestyle="--", linewidth=1, color="black")
+axes[0].set_xlabel("LDA projection (decision function)")
+axes[0].set_ylabel("Row count")
+axes[0].set_title("LDA: projection of test rows by class")
+axes[0].legend()
+
+axes[1].hist(
+    lasso_proba[y_test == 0],
+    bins=50,
+    alpha=0.6,
+    label="Efficient (class 0)",
+)
+axes[1].hist(
+    lasso_proba[y_test == 1],
+    bins=50,
+    alpha=0.6,
+    label="Inefficient (class 1)",
+)
+axes[1].axvline(0.5, linestyle="--", linewidth=1, color="black")
+axes[1].set_xlabel("Predicted probability of class 1")
+axes[1].set_ylabel("Row count")
+axes[1].set_title("Lasso Logistic Regression: predicted probabilities by class")
+axes[1].legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+**Findings: visualizations of the linear ceiling**
+
+These two plots show the limit of what any linear model can achieve on this feature set.
+
+- **LDA projection (left)**: each test row is compressed to a single number. Efficient rows (blue) cluster around -2, inefficient rows (orange) cluster around +1. The two distributions overlap between roughly -3 and +2. Rows in that overlap region are where LDA gets confused, since the same projection value could belong to either class.
+
+- **Lasso probabilities (right)**: a different shape entirely. Lasso confidently calls a large group of efficient rows class 0, producing the tall blue spike near probability 0. Inefficient rows spread across probabilities 0.4 to 1.0 with the bulk above 0.6. The model is decisive about many efficient rows but less sure about inefficient ones.
+
+- **Same conclusion from both plots**: meaningful overlap between the two classes exists in any linear projection of the feature space. That overlap is the linear ceiling. No amount of regularization or hyperparameter tuning will eliminate it.
+
+- **This explains the F1 vs ROC AUC gap**: ROC AUC is high (~0.92) because the models rank rows correctly on average. F1 sits around 0.80 because at the default 0.5 threshold, the overlap region produces both false positives and false negatives.
+
+- **Motivation for the next models**: XGBoost and the Graph Attention Network are non-linear. They can capture interactions between features that no straight line in feature space can express. If the overlap region in these plots can be untangled, it has to be done with non-linear structure.
+
+
+## Summary
+
+**Models trained and evaluated:**
+
+| Model | CV F1 | CV ROC AUC | Test F1 | Test ROC AUC |
+|---|---|---|---|---|
+| Naive baseline (persistence) | n/a | n/a | 0.9105 | 0.9261 |
+| Logistic Regression (Lasso) | 0.7969 +/- 0.0103 | 0.9170 +/- 0.0038 | 0.8182 | 0.9239 |
+| Logistic Regression (Elastic Net) | 0.7979 +/- 0.0108 | 0.9166 +/- 0.0037 | 0.8155 | 0.9229 |
+| Linear Discriminant Analysis | 0.7897 +/- 0.0196 | 0.9058 +/- 0.0052 | 0.7956 | 0.9097 |
+
+**Key takeaways:**
+
+- The naive persistence baseline beats every trained linear model on F1. The previous-row label carries information that lagged sensor features alone cannot fully recover.
+- All three trained linear models cluster tightly: F1 between 0.79 and 0.82, ROC AUC between 0.91 and 0.92. The linear ceiling is real and consistent across approaches.
+- Lasso and Elastic Net produce statistically indistinguishable scores. Lasso is preferred for its sparser solution (36 kept features vs 49).
+- LDA trails Logistic Regression slightly on both metrics. Its Gaussian-class assumption is only approximately satisfied.
+- Diagnostic plots confirm meaningful class overlap in any linear projection of the feature space. The gap between high ROC AUC and lower F1 is a threshold/overlap issue, not a missing-signal issue.
+
+**Artifacts saved:**
+
+- `models/05_baselines/`: trained pipelines for Lasso, Elastic Net, and LDA (`.pkl`).
+- `results/05_baselines/`: per-model JSON results, a Lasso feature inspection JSON, and a combined `metrics.json`.
+
+**Next:**
+
+- Notebook 06: XGBoost. First non-linear model. The diagnostic plots suggest there is room above the linear ceiling if non-linear interactions can untangle the overlap region.
+- Future work flagged: classification threshold tuning, t+1 target framing, edge construction methods for the Graph Attention Network.
