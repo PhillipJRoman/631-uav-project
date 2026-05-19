@@ -1,0 +1,11 @@
+{
+  "model": "logreg_lasso",
+  "cv_f1_mean": 0.79694886703032,
+  "cv_f1_std": 0.010322834301609352,
+  "cv_roc_auc_mean": 0.917036911943827,
+  "cv_roc_auc_std": 0.0037678233913030564,
+  "best_C": 0.005994842503189409,
+  "l1_ratio": 1.0,
+  "n_features_kept": 36,
+  "n_features_eliminated": 34
+}

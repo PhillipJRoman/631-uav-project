@@ -1,0 +1,189 @@
+{
+  "model": "logistic_regression_lasso",
+  "best_C": 0.005994842503189409,
+  "n_features_total": 70,
+  "n_features_kept": 36,
+  "n_features_eliminated": 34,
+  "eliminated_features": [
+    "gyro_rad[0]_f104",
+    "gyro_rad[2]_f104",
+    "true_airspeed_m_s_f5",
+    "q[0]_f119",
+    "q[1]_f119",
+    "q[2]_f119",
+    "output[2]_f3",
+    "output[3]_f3",
+    "gyro_rad[2]_f104_lag1",
+    "indicated_airspeed_m_s_f5_lag1",
+    "true_airspeed_m_s_f5_lag1",
+    "q[0]_f119_lag1",
+    "q[1]_f119_lag1",
+    "q[2]_f119_lag1",
+    "q[3]_f119_lag1",
+    "output[0]_f3_lag1",
+    "output[2]_f3_lag1",
+    "output[3]_f3_lag1",
+    "gyro_rad[2]_f104_lag2",
+    "indicated_airspeed_m_s_f5_lag2",
+    "true_airspeed_m_s_f5_lag2",
+    "q[1]_f119_lag2",
+    "q[2]_f119_lag2",
+    "q[3]_f119_lag2",
+    "output[0]_f3_lag2",
+    "output[2]_f3_lag2",
+    "gyro_rad[0]_f104_rstd5",
+    "gyro_rad[1]_f104_rstd5",
+    "accelerometer_m_s2[2]_f104_rstd5",
+    "indicated_airspeed_m_s_f5_rstd5",
+    "q[0]_f119_rstd5",
+    "output[1]_f3_rstd5",
+    "output[2]_f3_rstd5",
+    "ambient_temperature_f117"
+  ],
+  "coefficients_sorted_by_abs_value": [
+    {
+      "feature": "output[0]_f3",
+      "coef": 3.2414247976201254
+    },
+    {
+      "feature": "indicated_airspeed_m_s_f5",
+      "coef": -0.4256764278199912
+    },
+    {
+      "feature": "accelerometer_m_s2[0]_f104",
+      "coef": 0.2870898046667327
+    },
+    {
+      "feature": "time_since_start_of_flight",
+      "coef": 0.2674501821101219
+    },
+    {
+      "feature": "accelerometer_m_s2[0]_f104_lag1",
+      "coef": 0.21890488685265944
+    },
+    {
+      "feature": "q[3]_f119_rstd5",
+      "coef": -0.19857296791799997
+    },
+    {
+      "feature": "wind_magnitude",
+      "coef": 0.1953365451131908
+    },
+    {
+      "feature": "accelerometer_m_s2[0]_f104_lag2",
+      "coef": 0.18354815192926774
+    },
+    {
+      "feature": "accelerometer_m_s2[0]_f104_rstd5",
+      "coef": -0.16392609615684792
+    },
+    {
+      "feature": "baro_pressure_pa_f117",
+      "coef": -0.14477063124711223
+    },
+    {
+      "feature": "true_airspeed_m_s_f5_rstd5",
+      "coef": -0.13591933944143483
+    },
+    {
+      "feature": "output[3]_f3_lag2",
+      "coef": 0.12282854067923304
+    },
+    {
+      "feature": "gyro_rad[1]_f104",
+      "coef": -0.09938953501884303
+    },
+    {
+      "feature": "output[1]_f3",
+      "coef": 0.0906663651819723
+    },
+    {
+      "feature": "accelerometer_m_s2[1]_f104",
+      "coef": 0.058862971054353626
+    },
+    {
+      "feature": "gyro_rad[0]_f104_lag2",
+      "coef": -0.05437725219409677
+    },
+    {
+      "feature": "accelerometer_m_s2[1]_f104_lag2",
+      "coef": 0.053737562829186965
+    },
+    {
+      "feature": "gyro_rad[2]_f104_rstd5",
+      "coef": -0.051603651081082745
+    },
+    {
+      "feature": "accelerometer_m_s2[1]_f104_lag1",
+      "coef": 0.0507096746591469
+    },
+    {
+      "feature": "q[1]_f119_rstd5",
+      "coef": 0.049836411285796994
+    },
+    {
+      "feature": "rho_f117",
+      "coef": -0.04655774982671486
+    },
+    {
+      "feature": "output[3]_f3_rstd5",
+      "coef": -0.04500504200894373
+    },
+    {
+      "feature": "accelerometer_m_s2[2]_f104",
+      "coef": 0.04233522046312438
+    },
+    {
+      "feature": "accelerometer_m_s2[1]_f104_rstd5",
+      "coef": -0.04026488009089688
+    },
+    {
+      "feature": "output[1]_f3_lag2",
+      "coef": 0.0400611490676041
+    },
+    {
+      "feature": "output[0]_f3_rstd5",
+      "coef": -0.03963571199610019
+    },
+    {
+      "feature": "q[0]_f119_lag2",
+      "coef": -0.037438966213212195
+    },
+    {
+      "feature": "accelerometer_m_s2[2]_f104_lag1",
+      "coef": 0.03105296009172242
+    },
+    {
+      "feature": "accelerometer_m_s2[2]_f104_lag2",
+      "coef": 0.025421354142461123
+    },
+    {
+      "feature": "q[2]_f119_rstd5",
+      "coef": 0.024503352791515918
+    },
+    {
+      "feature": "gyro_rad[1]_f104_lag1",
+      "coef": -0.018198424961627217
+    },
+    {
+      "feature": "wind_magnitude_zscore",
+      "coef": 0.017433966374412732
+    },
+    {
+      "feature": "gyro_rad[1]_f104_lag2",
+      "coef": -0.014735005554972628
+    },
+    {
+      "feature": "output[1]_f3_lag1",
+      "coef": 0.01285189544572596
+    },
+    {
+      "feature": "q[3]_f119",
+      "coef": 0.004220841345844218
+    },
+    {
+      "feature": "gyro_rad[0]_f104_lag1",
+      "coef": -0.0004496435006884245
+    }
+  ]
+}

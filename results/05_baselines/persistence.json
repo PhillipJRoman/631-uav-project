@@ -1,0 +1,12 @@
+{
+  "model": "persistence",
+  "cv_f1_mean": 0.9090156298519821,
+  "cv_f1_std": 0.0,
+  "cv_roc_auc_mean": 0.9232148551090469,
+  "cv_roc_auc_std": 0.0,
+  "note": "Naive baseline, no CV. Scores are train-set predictions vs train-set labels.",
+  "train_f1": 0.9090156298519821,
+  "train_roc_auc": 0.9232148551090469,
+  "test_f1": 0.9105431309904153,
+  "test_roc_auc": 0.9260591056349335
+}

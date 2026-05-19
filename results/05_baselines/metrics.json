@@ -1,0 +1,61 @@
+{
+  "notebook": "05_model_baselines",
+  "test_set": {
+    "n_rows": 8724,
+    "n_flights": 17
+  },
+  "cv_setup": {
+    "splitter": "GroupKFold",
+    "n_splits": 6,
+    "group_col": "flight_id"
+  },
+  "models": {
+    "persistence": {
+      "type": "naive_baseline",
+      "cv_f1_mean": null,
+      "cv_f1_std": null,
+      "cv_roc_auc_mean": null,
+      "cv_roc_auc_std": null,
+      "train_f1": 0.9090156298519821,
+      "train_roc_auc": 0.9232148551090469,
+      "test_f1": 0.9105431309904153,
+      "test_roc_auc": 0.9260591056349335,
+      "note": "No CV. Predicts label at row t as label at row t-1 within each flight."
+    },
+    "logreg_lasso": {
+      "type": "logistic_regression_l1",
+      "best_C": 0.005994842503189409,
+      "l1_ratio": 1.0,
+      "n_features_kept": 36,
+      "n_features_eliminated": 34,
+      "cv_f1_mean": 0.79694886703032,
+      "cv_f1_std": 0.010322834301609352,
+      "cv_roc_auc_mean": 0.917036911943827,
+      "cv_roc_auc_std": 0.0037678233913030564,
+      "test_f1": 0.8182064481170415,
+      "test_roc_auc": 0.9239091151057613
+    },
+    "logreg_enet": {
+      "type": "logistic_regression_elastic_net",
+      "best_C": 0.005994842503189409,
+      "l1_ratio": 0.5,
+      "n_features_kept": 49,
+      "n_features_eliminated": 21,
+      "cv_f1_mean": 0.797883786189754,
+      "cv_f1_std": 0.010828521576682834,
+      "cv_roc_auc_mean": 0.9165858172949304,
+      "cv_roc_auc_std": 0.0037451280313551627,
+      "test_f1": 0.8155076589399485,
+      "test_roc_auc": 0.9229367389047268
+    },
+    "lda": {
+      "type": "linear_discriminant_analysis",
+      "cv_f1_mean": 0.7896647730871832,
+      "cv_f1_std": 0.01959738611344624,
+      "cv_roc_auc_mean": 0.9057851868103718,
+      "cv_roc_auc_std": 0.005185354759503124,
+      "test_f1": 0.7955845192179811,
+      "test_roc_auc": 0.9097008301657691
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "model": "logreg_enet",
+  "cv_f1_mean": 0.797883786189754,
+  "cv_f1_std": 0.010828521576682834,
+  "cv_roc_auc_mean": 0.9165858172949304,
+  "cv_roc_auc_std": 0.0037451280313551627,
+  "best_C": 0.005994842503189409,
+  "l1_ratio": 0.5,
+  "n_features_kept": 49,
+  "n_features_eliminated": 21
+}
