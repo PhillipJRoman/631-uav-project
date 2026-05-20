@@ -1,0 +1,43 @@
+{
+  "model": "gat_xgboost_hybrid",
+  "random_seed": 631,
+  "n_features": 326,
+  "n_raw_features": 70,
+  "n_embedding_features": 256,
+  "cv": {
+    "n_splits": 6,
+    "strategy": "GroupKFold by flight_id",
+    "baseline_mean_f1": 0.8636586929990145,
+    "baseline_mean_roc_auc": 0.9618712216064625,
+    "tuned_mean_f1": 0.8740437505202733
+  },
+  "optuna": {
+    "n_trials": 75,
+    "best_trial": 27,
+    "best_mean_cv_f1": 0.8740437505202733,
+    "best_mean_iterations": 919,
+    "best_params": {
+      "max_depth": 5,
+      "learning_rate": 0.03651850248144785,
+      "min_child_weight": 7,
+      "subsample": 0.7807871187257264,
+      "colsample_bytree": 0.6823841820268008,
+      "reg_alpha": 3.055487655767252,
+      "reg_lambda": 0.4187209226791868,
+      "scale_pos_weight": 1.7383331702141596
+    }
+  },
+  "test": {
+    "n_rows": 8724,
+    "n_flights": 17,
+    "f1": 0.866557734204793,
+    "roc_auc": 0.9642382008235666
+  },
+  "threshold_tuning": {
+    "method": "out-of-fold predictions, F1 maximization",
+    "best_threshold": 0.55,
+    "oof_f1_at_0.5": 0.8744807567188829,
+    "oof_f1_at_best_threshold": 0.8744914564686738,
+    "test_f1_at_tuned_threshold": 0.8683737024221453
+  }
+}
