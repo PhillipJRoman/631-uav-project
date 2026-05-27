@@ -1,0 +1,5 @@
+outs:
+- md5: 2dce7030d8907ea34adc289a1cd0eb6f
+  size: 352514
+  hash: md5
+  path: umap_comparison.png
